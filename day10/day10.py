@@ -71,72 +71,53 @@ def make_map(data):
     #nx.draw(g, with_labels=True, node_color=color_map)
     #plt.show()
 
-    # Remove any nodes that aren't connected to the start node
-    # ???
+    start_r, start_c = start_node
+    connected_north = g.has_edge( (start_r,start_c), (start_r-1,start_c) )
+    connected_south = g.has_edge( (start_r,start_c), (start_r+1,start_c) )
+    connected_west = g.has_edge( (start_r,start_c), (start_r,start_c-1) )
+    connected_east = g.has_edge( (start_r,start_c), (start_r,start_c+1) )
+    if (connected_north and connected_east):
+        grid[start_node] = 'L'
+    elif (connected_north and connected_south):
+        grid[start_node] = '|'
+    elif (connected_north and connected_west):
+        grid[start_node] = 'J'
+    elif (connected_south and connected_west):
+        grid[start_node] = '7'
+    elif (connected_south and connected_east):
+        grid[start_node] = 'F'
+    elif (connected_east and connected_west):
+        grid[start_node] = '-'
+    else:
+        print("Can't figure out what S should be")
+    print(f"Set S to {grid[start_node]}")
 
     return grid, g, start_node, (rows, cols)
 
 def part_b(grid, rows, cols, main_loop_nodes):
-    # Nodes are "outside" if you can get from the start to the edge
+    # Nodes are "inside" if you cross the loop an odd number of times.
+    # https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
     # 
-    # To go north or south, you get blocked by a -
-    # To go east or west, you get blocked by a |
+    # This is a REAlLY COOL algorithm - it doesn't matter which direction
+    # you cast your "ray" -- if you cross the loop 
     innies = []
     outies = []
-    secret_outies = []
     for (r,c), symbol in grid.items():
-        if symbol == ".":
-            #print(f"({r},{c}) = {symbol}")
-            # Check to see if anything to the left is |
-            stopped_west = False
-            for i in range(c, 0, -1):
-                #print(f"  ({r},{i}) {symbol}")
-                if grid[(r,i)] == '|':
-                    #print("  stopped w")
-                    stopped_west = True
-                    break
-            
-            stopped_east = False
-            for j in range(c, cols):
-                #print(f"  ({r},{j}) {symbol}")
-                if grid[(r,j)] == '|':
-                    #print("  stopped e")
-                    stopped_east = True
-                    break
-            
-            stopped_north = False
-            for m in range(r, 0, -1):
-                #print(f"  ({m},{c}) {symbol}")
-                if grid[(m, c)] == '-':
-                    #print("  stopped n")
-                    stopped_north = True
-                    break
-            
-            stopped_south = False
-            for n in range(r, rows):
-                #print(f"  ({n},{c}) {symbol}")
-                if grid[(n,c)] == '-':
-                    #print("  stopped s")
-                    stopped_south = True
-                    break
-            
-            if (stopped_north and stopped_south and stopped_west and stopped_east):
+        if (r,c) not in main_loop_nodes:
+            # Cast the ray due south, for arbitrary reasons
+            hits = 0
+            for x in range(r, rows):
+                if (x,c) in main_loop_nodes and not (grid[(x,c)] in {'|', 'F', 'L'}):
+                    hits += 1
+
+            if hits % 2 == 1:
                 innies.append((r,c))
                 #print(f"Found innie at ({r},{c})")
             else:
                 #print(f"Found outie at ({r},{c})")
                 outies.append((r,c))
-
-    # If you are an innie but your neighbor is an outie, you're an outie now too.
-    # But not diagonally, I hope
-    for (ir,ic) in innies:
-        if ((ir-1,ic) in outies) or ((ir+1,ic) in outies) or ((ir,ic-1) in outies) or ((ir,ic+1) in outies):
-            secret_outies.append((ir,ic))
-
-    #print(f"Found some secret outies! {secret_outies}")
-    real_innies = set(innies) - set(secret_outies)
                 
-    return real_innies
+    return innies
 
 if __name__ == "__main__":
     with open(sys.argv[1], "r") as infile:
@@ -155,6 +136,10 @@ if __name__ == "__main__":
         # Nodes are enclosed by the loop if you can't get to the edge
         # without crossing a pipe. I think our solution to Part A is...
         # totally useless here?  😱
+
+        # We have to replace the start node with the node type it "should" be
+        # to make the part B algorithm work.
+
         # Actually, not useless... the nodes that aren't connected to the
         # start node can be replaced with '.' before we process it
         #for node in graph.nodes():
@@ -162,5 +147,5 @@ if __name__ == "__main__":
         #        print(f"Removing {node}")
         #        grid[node] = '.'
             
-        innies = part_b(grid, rows, cols)
+        innies = part_b(grid, rows, cols, distances.keys())
         print(f"Found {len(innies)} innies")
